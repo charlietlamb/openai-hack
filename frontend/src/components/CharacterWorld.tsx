@@ -6,12 +6,13 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { WorldCanvas } from './WorldCanvas';
-import { WorldControls } from './WorldControls';
+import { WorldControls, SidebarToggleButton } from './WorldControls';
 import { useCharacterData } from '@/src/hooks/useCharacterData';
 import { useCamera } from '@/src/hooks/useCamera';
 import { useGameLoop } from '@/src/hooks/useGameLoop';
 import { SimulationCharacter } from '@/src/lib/character';
 import { getRandomPosition, getRandomVelocity } from '@/src/lib/world';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
 export function CharacterWorld() {
   // Load character data
@@ -111,17 +112,28 @@ export function CharacterWorld() {
   }
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-gray-900">
-      <WorldCanvas
-        characters={simulationCharacters}
-        camera={camera}
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        isDragging={isDragging}
-      />
+    <SidebarProvider
+      defaultOpen={true}
+      style={{
+        '--sidebar-width': '24rem',
+        '--sidebar-width-mobile': '20rem',
+      } as React.CSSProperties}
+    >
+      <SidebarInset className="overflow-hidden bg-gray-900 p-0 m-0">
+        <div className="relative w-full h-full">
+          <SidebarToggleButton />
+          <WorldCanvas
+            characters={simulationCharacters}
+            camera={camera}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            isDragging={isDragging}
+          />
+        </div>
+      </SidebarInset>
       <WorldControls onAsk={handleAsk} />
-    </div>
+    </SidebarProvider>
   );
 }

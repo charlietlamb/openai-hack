@@ -1,69 +1,231 @@
 /**
- * UI overlay controls for the character world
+ * AI Chat sidebar for the character world
  */
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { PanelRightOpen, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarTrigger,
+  useSidebar,
+} from '@/components/ui/sidebar';
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from '@/src/components/ai-elements/conversation';
+import { Message, MessageContent, MessageResponse } from '@/src/components/ai-elements/message';
+import {
+  PromptInput,
+  PromptInputActionAddAttachments,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuTrigger,
+  PromptInputAttachment,
+  PromptInputAttachments,
+  PromptInputBody,
+  PromptInputFooter,
+  PromptInputHeader,
+  type PromptInputMessage,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+} from '@/src/components/ai-elements/prompt-input';
+import { Suggestion, Suggestions } from '@/src/components/ai-elements/suggestion';
+import { nanoid } from 'nanoid';
+
+type MessageType = {
+  id: string;
+  from: 'user' | 'assistant';
+  content: string;
+};
+
+const suggestions = [
+  'What are the villagers doing?',
+  'Tell me about their behavior',
+  'How do they interact?',
+  'What makes them unique?',
+];
 
 interface WorldControlsProps {
   onAsk: (question: string) => void;
 }
 
 export function WorldControls({ onAsk }: WorldControlsProps) {
-  const [question, setQuestion] = useState('');
+  const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
+  const [messages, setMessages] = useState<MessageType[]>([]);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
 
-  const handleAsk = () => {
-    if (question.trim()) {
-      onAsk(question);
-      setQuestion('');
+  const streamResponse = useCallback(async (messageId: string, content: string) => {
+    setStatus('streaming');
+    setStreamingMessageId(messageId);
+
+    const words = content.split(' ');
+    let currentContent = '';
+
+    for (let i = 0; i < words.length; i++) {
+      currentContent += (i > 0 ? ' ' : '') + words[i];
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, content: currentContent } : msg
+        )
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, Math.random() * 100 + 50));
     }
+
+    setStatus('ready');
+    setStreamingMessageId(null);
+  }, []);
+
+  const addUserMessage = useCallback(
+    (content: string) => {
+      const userMessage: MessageType = {
+        id: nanoid(),
+        from: 'user',
+        content,
+      };
+
+      setMessages((prev) => [...prev, userMessage]);
+
+      // Trigger the original onAsk callback for game logic
+      onAsk(content);
+
+      // Simulate assistant response
+      setTimeout(() => {
+        const assistantMessageId = nanoid();
+        const assistantMessage: MessageType = {
+          id: assistantMessageId,
+          from: 'assistant',
+          content: '',
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+
+        // Mock response - in real implementation, this would come from the villagers
+        const mockResponse = 'The villagers are responding to your question. You can see their speech bubbles in the world!';
+        streamResponse(assistantMessageId, mockResponse);
+      }, 500);
+    },
+    [onAsk, streamResponse]
+  );
+
+  const handleSubmit = (message: PromptInputMessage) => {
+    const hasText = Boolean(message.text);
+
+    if (!hasText) {
+      return;
+    }
+
+    setStatus('submitted');
+    addUserMessage(message.text);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleAsk();
-    }
+  const handleSuggestionClick = (suggestion: string) => {
+    setStatus('submitted');
+    addUserMessage(suggestion);
   };
 
   return (
-    <>
-      {/* Top UI Panel */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-4 flex gap-3 items-center">
-          <input
-            type="text"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ask the villagers something..."
-            className="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 w-80 text-gray-900"
-          />
-          <button
-            onClick={handleAsk}
-            disabled={!question.trim()}
-            className="px-6 py-2 rounded-md bg-gradient-to-br from-purple-600 to-blue-500 text-white font-medium hover:from-purple-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            Ask
-          </button>
+    <Sidebar side="right" collapsible="offcanvas" className="bg-sidebar text-sidebar-foreground">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-3 bg-sidebar">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-normal text-sidebar-foreground">New Chat</h2>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Users className="size-3" />
+            <span>100</span>
+          </div>
         </div>
-      </div>
+      </SidebarHeader>
 
-      {/* Instructions */}
-      <div className="absolute bottom-4 left-4 z-10">
-        <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-3 text-white text-sm">
-          <p className="font-medium mb-1">Controls:</p>
-          <p>🖱️ Scroll to zoom</p>
-          <p>👆 Click and drag to pan</p>
-        </div>
-      </div>
+      <SidebarContent className="flex flex-col p-0 bg-sidebar">
+        <Conversation className="flex-1 bg-sidebar">
+          <ConversationContent className="text-sidebar-foreground">
+            {messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-center px-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-normal text-muted-foreground">No messages yet</p>
+                  <p className="text-xs text-muted-foreground">Ask the villagers a question to get started</p>
+                </div>
+              </div>
+            ) : (
+              messages.map((message) => (
+                <Message from={message.from} key={message.id}>
+                  <MessageContent className={message.from === 'assistant' ? 'text-sidebar-foreground' : ''}>
+                    <MessageResponse>{message.content}</MessageResponse>
+                  </MessageContent>
+                </Message>
+              ))
+            )}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
 
-      {/* Character Count */}
-      <div className="absolute bottom-4 right-4 z-10">
-        <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm font-medium">
-          🧑‍🤝‍🧑 100 Characters
+        <div className="shrink-0 divide-y divide-sidebar-border bg-sidebar">
+          <Suggestions className="px-4 py-3">
+            {suggestions.map((suggestion) => (
+              <Suggestion
+                key={suggestion}
+                onClick={() => handleSuggestionClick(suggestion)}
+                suggestion={suggestion}
+                className="text-sidebar-foreground"
+              />
+            ))}
+          </Suggestions>
+
+          <div className="px-4 py-3 bg-sidebar">
+            <PromptInput globalDrop multiple onSubmit={handleSubmit}>
+              <PromptInputHeader>
+                <PromptInputAttachments>
+                  {(attachment) => <PromptInputAttachment data={attachment} />}
+                </PromptInputAttachments>
+              </PromptInputHeader>
+              <PromptInputBody>
+                <PromptInputTextarea
+                  placeholder="Ask the villagers something..."
+                  className="text-sidebar-foreground placeholder:text-muted-foreground bg-sidebar-accent"
+                />
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  <PromptInputActionMenu>
+                    <PromptInputActionMenuTrigger />
+                    <PromptInputActionMenuContent>
+                      <PromptInputActionAddAttachments />
+                    </PromptInputActionMenuContent>
+                  </PromptInputActionMenu>
+                </PromptInputTools>
+                <PromptInputSubmit
+                  disabled={status === 'streaming'}
+                  status={status}
+                />
+              </PromptInputFooter>
+            </PromptInput>
+          </div>
         </div>
-      </div>
-    </>
+      </SidebarContent>
+    </Sidebar>
+  );
+}
+
+export function SidebarToggleButton() {
+  const { open } = useSidebar();
+
+  if (open) return null;
+
+  return (
+    <div className="fixed top-4 right-4 z-50">
+      <SidebarTrigger asChild>
+        <Button variant="outline" size="icon" className="shadow-lg">
+          <PanelRightOpen className="size-4" />
+        </Button>
+      </SidebarTrigger>
+    </div>
   );
 }

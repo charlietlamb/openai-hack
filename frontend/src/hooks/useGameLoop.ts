@@ -12,8 +12,8 @@ export type GameLoopCallback = (deltaTime: number) => void;
  * @param isActive Whether the loop should be running
  */
 export function useGameLoop(callback: GameLoopCallback, isActive: boolean = true) {
-  const requestRef = useRef<number>();
-  const previousTimeRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
+  const previousTimeRef = useRef<number | undefined>(undefined);
   const callbackRef = useRef(callback);
 
   // Update callback ref when it changes
