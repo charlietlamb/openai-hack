@@ -4,8 +4,10 @@
 
 'use client';
 
+import { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CharacterCard } from '@/src/components/CharacterCard';
+import { CharacterDetail } from '@/src/components/CharacterDetail';
 import type { Character } from '@/src/types/character';
 
 interface CharacterListProps {
@@ -13,6 +15,8 @@ interface CharacterListProps {
 }
 
 export function CharacterList({ characters }: CharacterListProps) {
+  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+
   if (characters.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-center px-4">
@@ -24,11 +28,24 @@ export function CharacterList({ characters }: CharacterListProps) {
     );
   }
 
+  // Show detail view if a character is selected
+  if (selectedCharacter) {
+    return (
+      <CharacterDetail
+        character={selectedCharacter}
+        onBack={() => setSelectedCharacter(null)}
+      />
+    );
+  }
+
+  // Show list view
   return (
     <ScrollArea className="h-full">
       <div className="flex flex-col gap-2 p-4">
         {characters.map((character) => (
-          <CharacterCard key={character.id} character={character} />
+          <div key={character.id} onClick={() => setSelectedCharacter(character)}>
+            <CharacterCard character={character} />
+          </div>
         ))}
       </div>
     </ScrollArea>

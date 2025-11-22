@@ -16,7 +16,7 @@ export function CharacterCard({ character }: CharacterCardProps) {
   const GenderIcon = character.gender === 'male' ? User2 : UserRound;
 
   return (
-    <div className="flex gap-3 p-3 bg-sidebar-accent rounded-lg border border-sidebar-border hover:bg-sidebar-accent/80 transition-colors">
+    <div className="flex gap-3 p-3 bg-sidebar-accent rounded-lg border border-sidebar-border hover:bg-sidebar-accent/80 transition-colors cursor-pointer">
       {/* Avatar - shows front-facing view (row 2) first frame from sprite sheet */}
       <div className="shrink-0 w-12 h-12 rounded-md overflow-hidden bg-sidebar border border-sidebar-border relative">
         <img
@@ -47,7 +47,7 @@ export function CharacterCard({ character }: CharacterCardProps) {
           </span>
         </div>
         <p className="text-xs font-normal text-muted-foreground line-clamp-2 leading-relaxed">
-          {character.description}
+          {character.persona}
         </p>
       </div>
     </div>
