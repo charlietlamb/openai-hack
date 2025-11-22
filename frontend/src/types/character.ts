@@ -31,6 +31,8 @@ export interface Character {
   description: string;
   attributes: CharacterAttributes;
   sprites: CharacterSprites;
+  name: string;
+  persona: string;
 }
 
 export interface CharactersData {

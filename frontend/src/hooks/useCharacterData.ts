@@ -19,21 +19,21 @@ async function fetchCharacterData(): Promise<CharactersData> {
 }
 
 /**
- * Select a random subset of characters
+ * Select the first N characters by ID
  */
-function selectRandomCharacters(
+function selectFirstCharacters(
   charactersData: CharactersData,
   count: number
 ): Character[] {
   const allCharacters = Object.values(charactersData.characters);
 
-  // Shuffle and select first N characters
-  const shuffled = [...allCharacters].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
+  // Sort by ID and select first N characters
+  const sorted = [...allCharacters].sort((a, b) => a.id - b.id);
+  return sorted.slice(0, count);
 }
 
 /**
- * Hook to load and select random characters
+ * Hook to load and select the first N characters
  */
 export function useCharacterData(count: number = WORLD_CONFIG.NUM_CHARACTERS) {
   const query = useQuery({
@@ -43,9 +43,9 @@ export function useCharacterData(count: number = WORLD_CONFIG.NUM_CHARACTERS) {
     gcTime: Infinity, // Keep in cache forever
   });
 
-  // Select random characters from the loaded data (memoized to prevent re-selection on every render)
+  // Select first N characters from the loaded data (memoized to prevent re-selection on every render)
   const selectedCharacters = useMemo(() => {
-    return query.data ? selectRandomCharacters(query.data, count) : [];
+    return query.data ? selectFirstCharacters(query.data, count) : [];
   }, [query.data, count]);
 
   return {

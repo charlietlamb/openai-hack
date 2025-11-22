@@ -133,7 +133,7 @@ export function CharacterWorld() {
           />
         </div>
       </SidebarInset>
-      <WorldControls onAsk={handleAsk} />
+      <WorldControls onAsk={handleAsk} characters={characterData} />
     </SidebarProvider>
   );
 }

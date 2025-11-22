@@ -14,6 +14,9 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CharacterList } from '@/src/components/CharacterList';
+import type { Character } from '@/src/types/character';
 import {
   Conversation,
   ConversationContent,
@@ -54,9 +57,10 @@ const suggestions = [
 
 interface WorldControlsProps {
   onAsk: (question: string) => void;
+  characters: Character[];
 }
 
-export function WorldControls({ onAsk }: WorldControlsProps) {
+export function WorldControls({ onAsk, characters }: WorldControlsProps) {
   const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
   const [messages, setMessages] = useState<MessageType[]>([]);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -134,82 +138,98 @@ export function WorldControls({ onAsk }: WorldControlsProps) {
 
   return (
     <Sidebar side="right" collapsible="offcanvas" className="bg-sidebar text-sidebar-foreground border-l border-sidebar-border">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-3 bg-sidebar">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-normal text-sidebar-foreground">New Chat</h2>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Users className="size-3" />
-            <span>100</span>
+      <Tabs defaultValue="chat" className="flex flex-col h-full">
+        <SidebarHeader className="border-b border-sidebar-border px-4 py-3 bg-sidebar space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-normal text-sidebar-foreground">Technocracy</h2>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Users className="size-3" />
+              <span>{characters.length}</span>
+            </div>
           </div>
-        </div>
-      </SidebarHeader>
+          <TabsList className="w-full h-8 bg-sidebar-accent">
+            <TabsTrigger value="chat" className="flex-1 h-7 text-xs font-normal">
+              Chat
+            </TabsTrigger>
+            <TabsTrigger value="technocrats" className="flex-1 h-7 text-xs font-normal">
+              Technocrats
+            </TabsTrigger>
+          </TabsList>
+        </SidebarHeader>
 
-      <SidebarContent className="flex flex-col p-0 bg-sidebar">
-        <Conversation className="flex-1 bg-sidebar">
-          <ConversationContent className="text-sidebar-foreground">
-            {messages.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-center px-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-normal text-muted-foreground">No messages yet</p>
-                  <p className="text-xs text-muted-foreground">Ask the villagers a question to get started</p>
-                </div>
+        <SidebarContent className="flex flex-col p-0 bg-sidebar flex-1 overflow-hidden">
+          <TabsContent value="chat" className="flex flex-col h-full m-0 data-[state=inactive]:hidden">
+            <Conversation className="flex-1 bg-sidebar">
+              <ConversationContent className="text-sidebar-foreground">
+                {messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-center px-4">
+                    <div className="space-y-2">
+                      <p className="text-sm font-normal text-muted-foreground">No messages yet</p>
+                      <p className="text-xs text-muted-foreground">Ask the villagers a question to get started</p>
+                    </div>
+                  </div>
+                ) : (
+                  messages.map((message) => (
+                    <Message from={message.from} key={message.id}>
+                      <MessageContent className={message.from === 'assistant' ? 'text-sidebar-foreground' : ''}>
+                        <MessageResponse>{message.content}</MessageResponse>
+                      </MessageContent>
+                    </Message>
+                  ))
+                )}
+              </ConversationContent>
+              <ConversationScrollButton />
+            </Conversation>
+
+            <div className="shrink-0 divide-y divide-sidebar-border bg-sidebar">
+              <Suggestions className="px-4 py-3">
+                {suggestions.map((suggestion) => (
+                  <Suggestion
+                    key={suggestion}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    suggestion={suggestion}
+                    className="text-sidebar-foreground"
+                  />
+                ))}
+              </Suggestions>
+
+              <div className="px-4 py-3 bg-sidebar">
+                <PromptInput globalDrop multiple onSubmit={handleSubmit}>
+                  <PromptInputHeader>
+                    <PromptInputAttachments>
+                      {(attachment) => <PromptInputAttachment data={attachment} />}
+                    </PromptInputAttachments>
+                  </PromptInputHeader>
+                  <PromptInputBody>
+                    <PromptInputTextarea
+                      placeholder="Ask the villagers something..."
+                      className="text-sidebar-foreground placeholder:text-muted-foreground bg-sidebar-accent"
+                    />
+                  </PromptInputBody>
+                  <PromptInputFooter>
+                    <PromptInputTools>
+                      <PromptInputActionMenu>
+                        <PromptInputActionMenuTrigger />
+                        <PromptInputActionMenuContent>
+                          <PromptInputActionAddAttachments />
+                        </PromptInputActionMenuContent>
+                      </PromptInputActionMenu>
+                    </PromptInputTools>
+                    <PromptInputSubmit
+                      disabled={status === 'streaming'}
+                      status={status}
+                    />
+                  </PromptInputFooter>
+                </PromptInput>
               </div>
-            ) : (
-              messages.map((message) => (
-                <Message from={message.from} key={message.id}>
-                  <MessageContent className={message.from === 'assistant' ? 'text-sidebar-foreground' : ''}>
-                    <MessageResponse>{message.content}</MessageResponse>
-                  </MessageContent>
-                </Message>
-              ))
-            )}
-          </ConversationContent>
-          <ConversationScrollButton />
-        </Conversation>
+            </div>
+          </TabsContent>
 
-        <div className="shrink-0 divide-y divide-sidebar-border bg-sidebar">
-          <Suggestions className="px-4 py-3">
-            {suggestions.map((suggestion) => (
-              <Suggestion
-                key={suggestion}
-                onClick={() => handleSuggestionClick(suggestion)}
-                suggestion={suggestion}
-                className="text-sidebar-foreground"
-              />
-            ))}
-          </Suggestions>
-
-          <div className="px-4 py-3 bg-sidebar">
-            <PromptInput globalDrop multiple onSubmit={handleSubmit}>
-              <PromptInputHeader>
-                <PromptInputAttachments>
-                  {(attachment) => <PromptInputAttachment data={attachment} />}
-                </PromptInputAttachments>
-              </PromptInputHeader>
-              <PromptInputBody>
-                <PromptInputTextarea
-                  placeholder="Ask the villagers something..."
-                  className="text-sidebar-foreground placeholder:text-muted-foreground bg-sidebar-accent"
-                />
-              </PromptInputBody>
-              <PromptInputFooter>
-                <PromptInputTools>
-                  <PromptInputActionMenu>
-                    <PromptInputActionMenuTrigger />
-                    <PromptInputActionMenuContent>
-                      <PromptInputActionAddAttachments />
-                    </PromptInputActionMenuContent>
-                  </PromptInputActionMenu>
-                </PromptInputTools>
-                <PromptInputSubmit
-                  disabled={status === 'streaming'}
-                  status={status}
-                />
-              </PromptInputFooter>
-            </PromptInput>
-          </div>
-        </div>
-      </SidebarContent>
+          <TabsContent value="technocrats" className="h-full m-0 data-[state=inactive]:hidden">
+            <CharacterList characters={characters} />
+          </TabsContent>
+        </SidebarContent>
+      </Tabs>
     </Sidebar>
   );
 }
