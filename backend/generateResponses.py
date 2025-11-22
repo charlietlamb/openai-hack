@@ -15,12 +15,19 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # Install with: pip install redis
 # Make sure Redis server is running: redis-server
 
-redis_client = redis.Redis(
-    host='localhost',  # Redis server location
-    port=6379,         # Default Redis port
-    db=0,              # Database number (Redis has 16 databases by default)
-    decode_responses=True  # Automatically convert bytes to strings
-)
+# Redis connection - supports both local development and Vercel (Upstash)
+redis_url = os.getenv("REDIS_URL")
+if redis_url:
+    # For Upstash Redis or Redis with URL format: redis://host:port
+    redis_client = redis.from_url(redis_url, decode_responses=True)
+else:
+    # Fallback to localhost for local development
+    redis_client = redis.Redis(
+        host='localhost',  # Redis server location
+        port=6379,         # Default Redis port
+        db=0,              # Database number (Redis has 16 databases by default)
+        decode_responses=True  # Automatically convert bytes to strings
+    )
 
 def init_character_cache(char_id):
     """
