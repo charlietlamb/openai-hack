@@ -133,7 +133,7 @@ export function WorldControls({ onAsk }: WorldControlsProps) {
   };
 
   return (
-    <Sidebar side="right" collapsible="offcanvas" className="bg-sidebar text-sidebar-foreground">
+    <Sidebar side="right" collapsible="offcanvas" className="bg-sidebar text-sidebar-foreground border-l border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3 bg-sidebar">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-normal text-sidebar-foreground">New Chat</h2>

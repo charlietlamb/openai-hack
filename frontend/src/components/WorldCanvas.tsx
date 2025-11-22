@@ -8,7 +8,7 @@ import { useRef, useEffect, forwardRef } from 'react';
 import type { Camera } from '@/src/hooks/useCamera';
 import type { SimulationCharacter } from '@/src/lib/character';
 import { WORLD_CONFIG } from '@/src/lib/world';
-import { drawGrid, drawWorldBoundary } from '@/src/lib/canvas-utils';
+import { drawGrid } from '@/src/lib/canvas-utils';
 
 interface WorldCanvasProps {
   characters: SimulationCharacter[];
@@ -124,9 +124,6 @@ export const WorldCanvas = forwardRef<HTMLCanvasElement, WorldCanvasProps>(
         for (const character of sortedCharacters) {
           character.draw(ctx);
         }
-
-        // Draw world boundary
-        drawWorldBoundary(ctx, WORLD_CONFIG.WIDTH, WORLD_CONFIG.HEIGHT);
 
         // Restore context state
         ctx.restore();

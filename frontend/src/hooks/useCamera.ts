@@ -2,7 +2,7 @@
  * Hook for camera controls (zoom and pan)
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { WORLD_CONFIG, CAMERA_CONFIG, clamp } from '@/src/lib/world';
 
 export interface Camera {
@@ -38,6 +38,32 @@ export function useCamera(canvasWidth: number, canvasHeight: number): CameraCont
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, cameraX: 0, cameraY: 0 });
   const rafIdRef = useRef<number | null>(null);
+
+  // Update camera zoom when canvas size changes
+  useEffect(() => {
+    const minZoomX = canvasWidth / WORLD_CONFIG.WIDTH;
+    const minZoomY = canvasHeight / WORLD_CONFIG.HEIGHT;
+    const newMinZoom = Math.max(minZoomX, minZoomY, CAMERA_CONFIG.MIN_ZOOM);
+
+    setCamera((prev) => {
+      // Only update if zoom needs to change
+      if (Math.abs(prev.zoom - newMinZoom) < 0.001) return prev;
+
+      // Inline clamping logic
+      const visibleWidth = canvasWidth / newMinZoom;
+      const visibleHeight = canvasHeight / newMinZoom;
+      const minX = visibleWidth / 2;
+      const maxX = WORLD_CONFIG.WIDTH - visibleWidth / 2;
+      const minY = visibleHeight / 2;
+      const maxY = WORLD_CONFIG.HEIGHT - visibleHeight / 2;
+
+      return {
+        x: clamp(prev.x, minX, maxX),
+        y: clamp(prev.y, minY, maxY),
+        zoom: newMinZoom,
+      };
+    });
+  }, [canvasWidth, canvasHeight]);
 
   /**
    * Clamp camera position to prevent showing void
