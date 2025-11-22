@@ -66,7 +66,7 @@ export function CharacterWorld() {
   useGameLoop(
     useCallback(
       (deltaTime) => {
-        simulationCharacters.forEach((char) => char.update(deltaTime));
+        simulationCharacters.forEach((char) => char.update(deltaTime, simulationCharacters));
       },
       [simulationCharacters]
     ),

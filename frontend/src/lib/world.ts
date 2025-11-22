@@ -12,7 +12,7 @@ export const CHARACTER_CONFIG = {
   WIDTH: 64,
   HEIGHT: 64,
   HITBOX_RADIUS: 10,
-  SPEED: 2, // Increased from 0.5 for more visible movement
+  SPEED: 0.5, // Increased from 0.5 for more visible movement
   ANIMATION_SPEED: 0.2, // Increased from 0.15 for smoother animation
   DIRECTION_CHANGE_CHANCE: 0.01, // 1% chance per frame
 } as const;

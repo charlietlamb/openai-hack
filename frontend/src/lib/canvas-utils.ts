@@ -38,7 +38,7 @@ export function drawSpeechBubble(
   text: string,
   fontSize: number = 12
 ): void {
-  const {PADDING, BORDER_RADIUS, POINTER_SIZE} = SPEECH_CONFIG;
+  const { PADDING, BORDER_RADIUS, POINTER_SIZE } = SPEECH_CONFIG;
 
   // Measure text
   ctx.font = `${fontSize}px Arial`;
@@ -119,7 +119,7 @@ export function drawShadow(
   ctx.save();
   ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
   ctx.beginPath();
-  ctx.ellipse(x, y + 5, width * 0.4, width * 0.15, 0, 0, Math.PI * 2);
+  ctx.ellipse(x, y + 28, width * 0.4, width * 0.15, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }

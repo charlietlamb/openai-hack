@@ -76,7 +76,7 @@ export class SimulationCharacter {
   /**
    * Update character position and state
    */
-  update(deltaTime: number = 1): void {
+  update(deltaTime: number = 1, allCharacters: SimulationCharacter[] = []): void {
     // Update speech timer
     if (this.state === CharacterState.TALKING) {
       this.speechTimer -= deltaTime * 16.67; // Approximate ms per frame at 60fps
@@ -88,6 +88,11 @@ export class SimulationCharacter {
 
     // Move character
     this.move();
+
+    // Handle collisions if other characters are provided
+    if (allCharacters.length > 0) {
+      this.handleCollisions(allCharacters);
+    }
 
     // Update animation
     this.updateAnimation();
@@ -116,6 +121,36 @@ export class SimulationCharacter {
       const angle = Math.random() * Math.PI * 2;
       this.vx = Math.cos(angle) * CHARACTER_CONFIG.SPEED;
       this.vy = Math.sin(angle) * CHARACTER_CONFIG.SPEED;
+    }
+  }
+
+  /**
+   * Handle collisions with other characters
+   */
+  private handleCollisions(others: SimulationCharacter[]): void {
+    for (const other of others) {
+      if (other.id === this.id) continue;
+
+      const dx = other.x - this.x;
+      const dy = other.y - this.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const minDistance = CHARACTER_CONFIG.HITBOX_RADIUS * 2;
+
+      if (distance < minDistance) {
+        // Collision detected: Push apart
+        const angle = Math.atan2(dy, dx);
+
+        const targetX = this.x + Math.cos(angle) * minDistance;
+        const targetY = this.y + Math.sin(angle) * minDistance;
+
+        const ax = (targetX - other.x) * 0.05;
+        const ay = (targetY - other.y) * 0.05;
+
+        this.vx -= ax;
+        this.vy -= ay;
+        other.vx += ax;
+        other.vy += ay;
+      }
     }
   }
 
