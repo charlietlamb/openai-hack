@@ -65,8 +65,9 @@ def init_character_cache(char_id):
     key = f"character:{char_id}"
     redis_client.hset(key, mapping={
         'id': char_id,
-        'chat': '',  # Empty string initially
-        'answer': 'false'  # Store as string ('true' or 'false')
+        'chat': '',  # Conversation history
+        'answer': 'false',  # Store as string ('true' or 'false')
+        'passion': '0.0'  # Passion score as string
     })
 
 def get_character_data(char_id):
@@ -74,7 +75,7 @@ def get_character_data(char_id):
     Retrieve character data from Redis.
     
     Returns:
-        dict with keys: id (int), chat (str), answer (bool)
+        dict with keys: id (int), chat (str), answer (bool), passion (float)
     """
     key = f"character:{char_id}"
     data = redis_client.hgetall(key)
@@ -85,7 +86,8 @@ def get_character_data(char_id):
     return {
         'id': int(data['id']),
         'chat': data['chat'],
-        'answer': data['answer'].lower() == 'true'
+        'answer': data['answer'].lower() == 'true',
+        'passion': float(data.get('passion', '0.0'))
     }
 
 def update_character_chat(char_id, chat_text):
@@ -110,6 +112,36 @@ def update_character_answer(char_id, answer):
     key = f"character:{char_id}"
     redis_client.hset(key, 'answer', 'true' if answer else 'false')
 
+def update_character_passion(char_id, passion):
+    """
+    Update the passion field for a character.
+    
+    Args:
+        char_id (int): Character ID
+        passion (float): Passion score from 0.0 to 1.0
+    """
+    key = f"character:{char_id}"
+    redis_client.hset(key, 'passion', str(passion))
+
+def set_global_question(question):
+    """
+    Store the global question in Redis.
+    
+    Args:
+        question (str): The question being asked to all characters
+    """
+    redis_client.set('global:question', question)
+
+def get_global_question():
+    """
+    Retrieve the global question from Redis.
+    
+    Returns:
+        str: The current global question, or empty string if not set
+    """
+    question = redis_client.get('global:question')
+    return question if question else ''
+
 def get_all_characters_data():
     """
     Get all character data from Redis.
@@ -125,7 +157,8 @@ def get_all_characters_data():
         characters.append({
             'id': int(data['id']),
             'chat': data['chat'],
-            'answer': data['answer'].lower() == 'true'
+            'answer': data['answer'].lower() == 'true',
+            'passion': float(data.get('passion', '0.0'))
         })
     
     return sorted(characters, key=lambda x: x['id'])
@@ -159,7 +192,7 @@ def query_gpt(prompt, model = "gpt-3.5-turbo"):
         {"role": "system", "content": prompt}
     ],
     max_tokens=150,       # limit the response length
-    temperature=0.8       # randomness of output
+    temperature=1.2       # randomness of output
     )
 
     # Extract the assistant’s reply
@@ -172,6 +205,14 @@ class CharacterResponse(BaseModel):
     
     name: str
     persona: str
+
+class CharacterQuestionResponse(BaseModel):
+    class Config:
+        extra = "forbid"  # This sets additionalProperties to false
+    
+    response: str  # The character's response text
+    answer: bool   # Yes/No answer
+    passion: float # Passion score from 0.0 to 1.0
     
 def createNamePersona_x100():
     # Path to the JSON file
@@ -252,7 +293,6 @@ def considerQuestion(question, char_id):
     while (len(char_id) < 4): char_id = "0" + char_id
 
     # Extract character persona and name.
-
     char_info = get_character_info(char_id)
 
     with (
@@ -266,9 +306,27 @@ def considerQuestion(question, char_id):
 
     response_1 = query_gpt(char_info['persona'] + introduction_prompt)
     prompt_2 = char_info['persona'] + introduction_prompt + response_1 + pre_prompt + question + post_prompt
-    response_2 = query_gpt(prompt_2)
-
-    return response_2
+    
+    # Use structured output for the response
+    response = client.chat.completions.create(
+        model="gpt-4o-2024-08-06",
+        messages=[
+            {"role": "system", "content": prompt_2}
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "character_question_response",
+                "strict": True,
+                "schema": CharacterQuestionResponse.model_json_schema()
+            }
+        },
+        max_tokens=800,
+        temperature=0.8
+    )
+    
+    # Parse and return the structured response
+    return json.loads(response.choices[0].message.content)
 
 def getAnswer(prompt):
     short = prompt[-60:]
@@ -305,21 +363,31 @@ def writeOut(answer, char_id):
 def process_character(char_id, question):
     """
     Process a single character's response to a question.
-    Now also updates Redis cache with the conversation and answer.
+    Now returns structured response with response text, answer, and passion.
+    Updates Redis cache with the conversation, answer, and passion.
     """
-    answer = considerQuestion(question, char_id)
-    ans_yes = getAnswer(answer)
-    # writeOut(answer, char_id)
+    result = considerQuestion(question, char_id)
     
-    # Update Redis cache with the character's response
-    update_character_chat(char_id, answer)
-    update_character_answer(char_id, ans_yes)
+    # Extract structured data
+    response_text = result['response']
+    answer_bool = result['answer']
+    passion_score = result['passion']
     
-    return ans_yes
+    # Update Redis cache with the character's response, answer, and passion
+    update_character_chat(char_id, response_text)
+    update_character_answer(char_id, answer_bool)
+    update_character_passion(char_id, passion_score)
+    
+    return {
+        'response': response_text,
+        'answer': answer_bool,
+        'passion': passion_score
+    }
 
 def promptCharacters(question, num):
     count_yes = 0
     count_no  = 0
+    total_passion = 0.0
 
     # Use ThreadPoolExecutor to parallelize API calls
     # max_workers can be adjusted based on API rate limits
@@ -334,12 +402,17 @@ def promptCharacters(question, num):
         for future in as_completed(future_to_char):
             char_id = future_to_char[future]
             try:
-                ans_yes = future.result()
-                if ans_yes:
+                result = future.result()
+                answer = result['answer']
+                passion = result['passion']
+                
+                if answer:
                     count_yes += 1
                 else:
                     count_no += 1
-                print(f"Character {char_id} completed: {'Yes' if ans_yes else 'No'}")
+                
+                total_passion += passion
+                print(f"Character {char_id} completed: {'Yes' if answer else 'No'} (passion: {passion:.2f})")
             except Exception as exc:
                 print(f"Character {char_id} generated an exception: {exc}")
                 count_no += 1  # Count errors as "No" votes
@@ -348,7 +421,8 @@ def promptCharacters(question, num):
     return {
         'yes_count': count_yes,
         'no_count': count_no,
-        'total': num
+        'total': num,
+        'average_passion': total_passion / num if num > 0 else 0.0
     }
 
 # ============================================
@@ -381,6 +455,9 @@ def handle_question():
         if not question:
             return jsonify({'error': 'Question is required'}), 400
         
+        # Store the global question in Redis
+        set_global_question(question)
+        
         # Call your existing function to get responses from characters (100 characters)
         results = promptCharacters(question, 100)
         
@@ -393,7 +470,7 @@ def handle_question():
         # Send back the results as JSON
         return jsonify({
             'success': True,
-            'question': question,
+            'question': get_global_question(),
             'results': results,
             'characters': cached_data  # Include all character data from cache
         }), 200
@@ -409,41 +486,35 @@ def handle_conversation():
     """
     Expects JSON like:
     {
-        "message": "What do you think about this?",
-        "character_id": 1,
-        "conversation_history": [...]  # Optional: previous messages
+        "character_ids": [1, 5, 10, 23]  # Array of character IDs
     }
+    
+    Retrieves the chat history from Redis cache for each character.
     """
     try:
         # Get the data sent from the frontend
         data = request.json
-        message = data.get('message')
-        character_id = data.get('character_id', 1)
-        conversation_history = data.get('conversation_history', [])
+        character_ids = data.get('character_ids', [])
         
         # Validate input
-        if not message:
-            return jsonify({'error': 'Message is required'}), 400
+        if not character_ids or not isinstance(character_ids, list):
+            return jsonify({'error': 'character_ids must be a non-empty array'}), 400
         
-        # Get response from a single character
-        response = considerQuestion(message, character_id)
-        answer = getAnswer(response)
+        # Get data from Redis for each character
+        characters_data = []
+        for char_id in character_ids:
+            char_data = get_character_data(char_id)
+            if char_data:
+                characters_data.append(char_data)
         
-        # Update Redis cache with conversation and answer
-        update_character_chat(character_id, response)
-        update_character_answer(character_id, answer)
-        
-        # Get updated character data from cache
-        character_data = get_character_data(character_id)
-        
-        # Send back the response
+        # Process will be added here
+
+
         return jsonify({
             'success': True,
-            'character_id': character_id,
-            'message': message,
-            'response': response,
-            'answer': answer,
-            'cached_data': character_data
+            'question': get_global_question(),
+            'character_ids': character_ids,
+            'characters_data': characters_data
         }), 200
         
     except Exception as e:
@@ -467,6 +538,7 @@ def get_characters():
         characters = get_all_characters_data()
         return jsonify({
             'success': True,
+            'question': get_global_question(),
             'count': len(characters),
             'characters': characters
         }), 200
@@ -508,6 +580,7 @@ if __name__ == '__main__':
     # Initialize all 100 characters in Redis at startup
     print("\nInitializing 100 characters in Redis cache...")
     clear_all_characters()  # Clear any old data first
+    set_global_question('')  # Initialize global question to empty
     for i in range(1, 101):
         init_character_cache(i)
     print(f"✓ Initialized {len(get_all_characters_data())} characters")
