@@ -29,9 +29,19 @@ frontend/
 │       └── ... (character_0002 through character_1000)
 ├── src/
 │   ├── types/
-│   │   └── character.ts                     # TypeScript types and helpers
-│   └── components/
-│       └── CharacterExample.tsx             # Example usage component
+│   │   └── character.ts                     # TypeScript types
+│   ├── components/
+│   │   ├── CharacterWorld.tsx               # Main simulation component
+│   │   ├── WorldCanvas.tsx                  # Canvas rendering
+│   │   └── WorldControls.tsx                # UI controls
+│   ├── hooks/
+│   │   ├── useCharacterData.ts              # Data loading with TanStack Query
+│   │   ├── useCamera.ts                     # Camera controls
+│   │   └── useGameLoop.ts                   # Animation loop
+│   └── lib/
+│       ├── character.ts                     # Character class
+│       ├── world.ts                         # World constants
+│       └── canvas-utils.ts                  # Drawing utilities
 └── scripts/
     ├── download-characters.ts               # Download script
     └── cleanup-characters.ts                # Cleanup script
@@ -108,64 +118,13 @@ import type {
 } from '@/types/character';
 ```
 
-## Helper Functions
-
-The `character.ts` types file includes useful helper functions:
-
-### Get Character by ID
-```typescript
-import { getCharacterById } from '@/types/character';
-
-const character = getCharacterById(charactersData, 42);
-```
-
-### Get All Characters as Array
-```typescript
-import { getAllCharacters } from '@/types/character';
-
-const allChars = getAllCharacters(charactersData);
-```
-
-### Filter by Gender
-```typescript
-import { getCharactersByGender } from '@/types/character';
-
-const males = getCharactersByGender(charactersData, 'male');
-const females = getCharactersByGender(charactersData, 'female');
-```
-
-### Filter by Attribute
-```typescript
-import { getCharactersByAttribute } from '@/types/character';
-
-const bronzeSkin = getCharactersByAttribute(charactersData, 'skin_color', 'bronze');
-const blackHair = getCharactersByAttribute(charactersData, 'hair_color', 'black');
-```
-
-### Get Random Character
-```typescript
-import { getRandomCharacter } from '@/types/character';
-
-const randomChar = getRandomCharacter(charactersData);
-```
-
-### Get Sprite URL
-```typescript
-import { getCharacterSpriteUrl } from '@/types/character';
-
-const idleUrl = getCharacterSpriteUrl(character, 'idle');
-const walkUrl = getCharacterSpriteUrl(character, 'walk');
-const sitUrl = getCharacterSpriteUrl(character, 'sit');
-```
-
 ## Usage in React Components
 
 ### Basic Example
 
 ```tsx
 import { useState, useEffect } from 'react';
-import type { CharactersData, Character } from '@/types/character';
-import { getRandomCharacter } from '@/types/character';
+import type { CharactersData, Character } from '@/src/types/character';
 
 export function CharacterDisplay() {
   const [data, setData] = useState<CharactersData | null>(null);
@@ -176,7 +135,9 @@ export function CharacterDisplay() {
       .then(res => res.json())
       .then((data: CharactersData) => {
         setData(data);
-        setCharacter(getRandomCharacter(data));
+        // Get first character
+        const firstChar = Object.values(data.characters)[0];
+        setCharacter(firstChar);
       });
   }, []);
 
@@ -186,20 +147,11 @@ export function CharacterDisplay() {
     <div>
       <h1>Character #{character.id}</h1>
       <p>{character.description}</p>
-      <img src={character.sprites.idle.url} alt="Character sprite" />
+      <img src={character.sprites.walk.url} alt="Character sprite" />
     </div>
   );
 }
 ```
-
-### Advanced Example
-
-See `src/components/CharacterExample.tsx` for a full-featured example with:
-- Character filtering by gender and attributes
-- Random character selection
-- Character ID search
-- Sprite display for all animation states
-- Detailed attribute display
 
 ## Sprite Information
 
