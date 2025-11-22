@@ -185,17 +185,13 @@ export class SimulationCharacter {
     // Clear any pending speech
     if (this.pendingSpeechTimeout) {
       clearTimeout(this.pendingSpeechTimeout);
+      this.pendingSpeechTimeout = null;
     }
 
-    // Random delay for staggered responses
-    const delay = Math.random() * SPEECH_CONFIG.MAX_DELAY_MS;
-
-    this.pendingSpeechTimeout = setTimeout(() => {
-      this.speechText = getRandomResponse();
-      this.speechTimer = SPEECH_CONFIG.DURATION_MS;
-      this.state = CharacterState.TALKING;
-      this.pendingSpeechTimeout = null;
-    }, delay);
+    // Immediate response
+    this.speechText = getRandomResponse();
+    this.speechTimer = SPEECH_CONFIG.DURATION_MS;
+    this.state = CharacterState.TALKING;
   }
 
   /**
